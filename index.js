@@ -5,15 +5,20 @@ import { TavilySearch } from "@langchain/tavily";
 import { createAgent,tool } from "langchain";
 import { z } from "zod";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
+import { MessagesAnnotation, StateGraph, MemorySaver } from "@langchain/langgraph";
+import { MongoClient } from "mongodb"
+import { MongoDBSaver } from "@langchain/langgraph-checkpoint-mongodb";
 
 
 dotenv.config();
 
 const app = express(); 
+
 const port=5000; 
 app.use(express.json());
 
+const client = new MongoClient("mongodb://dj9793181198_db_user:4bj5RPAe6qIrAlZg@ac-btxbsic-shard-00-00.uozwd1c.mongodb.net:27017,ac-btxbsic-shard-00-01.uozwd1c.mongodb.net:27017,ac-btxbsic-shard-00-02.uozwd1c.mongodb.net:27017/?ssl=true&replicaSet=atlas-yg3sqd-shard-0&authSource=admin");
+const checkpointer = new MongoDBSaver({ client })
 const tool1 = new TavilySearch({
   maxResults: 5,
   topic: "general",
@@ -74,7 +79,7 @@ const graph= new StateGraph(MessagesAnnotation)
 .addEdge("__start__","agent")
 .addEdge("tool","agent")
 .addConditionalEdges("agent",shouldContinue)
-.compile()
+.compile({checkpointer})
 
 
 
@@ -94,7 +99,8 @@ app.post("/ai", async (req, res) => {
         content:input
         }
     ]
-  })
+
+  },{configurable:{thread_id: "1"}})
   return res.json(result.messages[result.messages.length-1].content)
 
 })
